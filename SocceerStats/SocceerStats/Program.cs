@@ -30,7 +30,6 @@ namespace SocceerStats
                     {
                         if (newsResult.Headline == sentiment.Id)
                         {
-                            double score;
                             newsResult.PostiveSentiment = sentiment.ConfidenceScores.Positive;
                             newsResult.NeutralSentiment = sentiment.ConfidenceScores.Neutral;
                             newsResult.NegativeSentiment = sentiment.ConfidenceScores.Negative;
@@ -41,7 +40,7 @@ namespace SocceerStats
 
                 foreach (var result in newsResults)
                 {
-                    Console.WriteLine(string.Format("Seniment Score: Positive: {0}, Negative: {0}, Neutral: {3}, Date: {4:f}, Headline: {5}, Summary: {6} \r\n", result.PostiveSentiment, result.NegativeSentiment, result.NeutralSentiment, result.DatePublished, result.Headline, result.Summary));
+                    Console.WriteLine(string.Format("Seniment Score: Positive: {0:P}, Negative: {1:P}, Neutral: {2:P}, Date: {3:f}, Headline: {4}, Summary: {5} \r\n", result.PostiveSentiment, result.NegativeSentiment, result.NeutralSentiment, result.DatePublished, result.Headline, result.Summary));
                     Console.ReadKey();
                 }
             }

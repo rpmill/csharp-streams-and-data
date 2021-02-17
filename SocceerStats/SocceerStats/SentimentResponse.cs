@@ -10,7 +10,7 @@ namespace SocceerStats
 
     public class SentimentResponse
     {
-        [JsonProperty(PropertyName = "document")]
+        [JsonProperty(PropertyName = "documents")]
         public List<Sentiment> Sentiments { get; set; }
         public object[] errors { get; set; }
         public string modelVersion { get; set; }
@@ -20,7 +20,8 @@ namespace SocceerStats
     {
         [JsonProperty(PropertyName = "id")]
         public string Id { get; set; }
-        public string sentiment { get; set; }
+        [JsonProperty(PropertyName = "sentiment")]
+        public string SentimentSummary { get; set; }
         [JsonProperty(PropertyName = "confidenceScores")]
         public Confidencescores ConfidenceScores { get; set; }
         public Sentence[] sentences { get; set; }

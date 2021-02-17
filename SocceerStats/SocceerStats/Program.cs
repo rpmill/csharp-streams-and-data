@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using Newtonsoft.Json;
+using System.Net;
 
 namespace SocceerStats
 {
@@ -21,11 +22,33 @@ namespace SocceerStats
             var topTenPlayers = GetTopTenPlayers(players);
             foreach (var player in topTenPlayers)
             {
-                Console.WriteLine("Name: " + player.FirstName + " PPG: " + player.PointsPerGame);
+                List<NewsResult> newsResults = GetNewsForPlayer(string.Format("{0} {1}", player.FirstName, player.LastName));
+                SentimentResponse sentimentResponse = GetSentimentResponse(newsResults);
+                foreach (var sentiment in sentimentResponse.Sentiments)
+                {
+                    foreach (var newsResult in newsResults)
+                    {
+                        if (newsResult.Headline == sentiment.Id)
+                        {
+                            newsResult.PostiveSentiment = sentiment.ConfidenceScores.Positive;
+                            newsResult.NeutralSentiment = sentiment.ConfidenceScores.Neutral;
+                            newsResult.NegativeSentiment = sentiment.ConfidenceScores.Negative;
+                            break;                            
+                        }
+                    }
+                }
+
+                foreach (var result in newsResults)
+                {
+                    Console.WriteLine(string.Format("Seniment Score: Positive: {0:P}, Negative: {1:P}, Neutral: {2:P}, Date: {3:f}, Headline: {4}, Summary: {5} \r\n", result.PostiveSentiment, result.NegativeSentiment, result.NeutralSentiment, result.DatePublished, result.Headline, result.Summary));
+                    Console.ReadKey();
+                }
             }
 
             fileName = Path.Combine(directory.FullName, "topten.json");
             SerializePlayersToFile(topTenPlayers, fileName);
+
+            
 
 
         }
@@ -130,5 +153,62 @@ namespace SocceerStats
             }
 
         }
+
+        public static string GetGoogleHomePage()
+        {
+            var webClient = new WebClient();
+            byte[] googleHome = webClient.DownloadData("https://www.google.com");
+
+            using (var stream = new MemoryStream(googleHome))
+            using (var reader = new StreamReader(stream))
+            {
+                return reader.ReadToEnd();
+            }
+        }
+
+        public static List<NewsResult> GetNewsForPlayer(string playerName)
+        {
+            var results = new List<NewsResult>();
+            var webClient = new WebClient();
+            webClient.Headers.Add("Ocp-Apim-Subscription-Key", "1907f77783694b288f738e65883a19cb");
+            byte[] searchResults = webClient.DownloadData(string.Format("https://api.bing.microsoft.com/v7.0/news/search?q={0}&mkt=en-us", playerName));
+
+            var serializer = new JsonSerializer();
+
+            using (var stream = new MemoryStream(searchResults))
+            using (var reader = new StreamReader(stream))
+            using (var jsonReader = new JsonTextReader(reader))
+            {
+                results = serializer.Deserialize<NewsSearch>(jsonReader).NewsResults;
+            }
+            return results;
+        }
+
+        public static SentimentResponse GetSentimentResponse(List<NewsResult> newsResults)
+        {
+            var sentimentResponse = new SentimentResponse();
+            var sentimentRequest = new SentimentRequest();
+            sentimentRequest.Documents = new List<Document>();
+            foreach (var result in newsResults)
+            {
+                sentimentRequest.Documents.Add(new Document { Id = result.Headline, Text = result.Summary });
+            }
+
+            var webClient = new WebClient();
+            webClient.Headers.Add("Ocp-Apim-Subscription-Key", "c977a524a9f8477d8a63891acfc48ac0");
+            webClient.Headers.Add(HttpRequestHeader.Accept, "application/json");
+            webClient.Headers.Add(HttpRequestHeader.ContentType, "application/json");
+            string requestJson = JsonConvert.SerializeObject(sentimentRequest);
+            byte[] requestBytes = Encoding.UTF8.GetBytes(requestJson);
+
+            // the response byte array has bytes in it, but it doesn't encode to a string, so sentiments is left null, which throws an exception.
+            byte[] response = webClient.UploadData("https://ryanmiller.cognitiveservices.azure.com/text/analytics/v3.1-preview.3/sentiment", requestBytes);
+
+            string sentiments = Encoding.UTF8.GetString(response);
+            sentimentResponse = JsonConvert.DeserializeObject<SentimentResponse>(sentiments);
+            return sentimentResponse;
+        }
+
+        
     }
 }
